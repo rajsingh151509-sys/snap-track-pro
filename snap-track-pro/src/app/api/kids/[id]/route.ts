@@ -17,6 +17,8 @@ const PatchBody = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   calorie_goal: z.number().int().min(500).max(5000).optional(),
   water_goal_ml: z.number().int().min(200).max(5000).optional(),
+  protein_goal: z.number().int().min(10).max(400).optional(),
+  is_athlete: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
@@ -36,6 +38,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       'color',
       'calorie_goal',
       'water_goal_ml',
+      'protein_goal',
+      'is_athlete',
     ] as const) {
       if (k in body) updates[k] = (body as Record<string, unknown>)[k];
     }
@@ -48,7 +52,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const rows = await sql<User[]>`
       UPDATE users SET ${sql(updates)} WHERE id = ${target.id}
       RETURNING id, role, email, username, parent_id, name, age, gender,
-                height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at
+                height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+                protein_goal, is_athlete, created_at
     `;
     return ok({ user: toPublicUser(rows[0]) });
   } catch (e) {

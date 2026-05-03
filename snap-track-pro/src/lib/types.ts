@@ -14,6 +14,8 @@ export interface User {
   color: string;
   calorie_goal: number;
   water_goal_ml: number;
+  protein_goal: number;
+  is_athlete: boolean;
   created_at: string;
 }
 
@@ -30,6 +32,8 @@ export interface PublicUser {
   color: string;
   calorie_goal: number;
   water_goal_ml: number;
+  protein_goal: number;
+  is_athlete: boolean;
 }
 
 export interface Entry {
@@ -39,6 +43,7 @@ export interface Entry {
   ts: string;
   food_name: string | null;
   calories: number | null;
+  protein_g: number | null;
   notes: string | null;
   confidence: 'low' | 'medium' | 'high' | null;
   ml: number | null;
@@ -47,6 +52,7 @@ export interface Entry {
 export interface AnalyzeResult {
   food: string;
   calories: number;
+  protein_g: number;
   confidence: 'low' | 'medium' | 'high';
   notes: string;
 }
@@ -65,5 +71,7 @@ export function toPublicUser(u: User): PublicUser {
     color: u.color,
     calorie_goal: u.calorie_goal,
     water_goal_ml: u.water_goal_ml,
+    protein_goal: u.protein_goal,
+    is_athlete: u.is_athlete,
   };
 }

@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS users (
   color         TEXT NOT NULL DEFAULT '#7c3aed',
   calorie_goal  INTEGER NOT NULL DEFAULT 1500,
   water_goal_ml INTEGER NOT NULL DEFAULT 1400,
+  protein_goal  INTEGER NOT NULL DEFAULT 50,
+  is_athlete    BOOLEAN NOT NULL DEFAULT false,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   CONSTRAINT users_email_or_username CHECK (
     (role = 'parent' AND email IS NOT NULL AND username IS NULL)
@@ -38,6 +40,7 @@ CREATE TABLE IF NOT EXISTS entries (
   -- food
   food_name   TEXT,
   calories    INTEGER,
+  protein_g   INTEGER,
   notes       TEXT,
   confidence  TEXT CHECK (confidence IN ('low', 'medium', 'high') OR confidence IS NULL),
   -- water

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const days = Math.max(1, Math.min(60, Number(url.searchParams.get('days') || '7')));
     const since = new Date(Date.now() - days * 24 * 3600 * 1000).toISOString();
     const rows = await sql<Entry[]>`
-      SELECT id, user_id, type, ts, food_name, calories, notes, confidence, ml
+      SELECT id, user_id, type, ts, food_name, calories, protein_g, notes, confidence, ml
       FROM entries
       WHERE user_id = ${userId} AND ts >= ${since}
       ORDER BY ts DESC
@@ -37,6 +37,7 @@ const CreateBody = z
     type: z.enum(['food', 'water']),
     food_name: z.string().min(1).max(200).optional(),
     calories: z.number().int().min(0).max(10000).optional(),
+    protein_g: z.number().int().min(0).max(500).optional(),
     notes: z.string().max(500).optional().nullable(),
     confidence: z.enum(['low', 'medium', 'high']).optional().nullable(),
     ml: z.number().int().min(0).max(5000).optional(),
@@ -56,19 +57,20 @@ export async function POST(req: NextRequest) {
 
     if (body.type === 'food') {
       const rows = await sql<Entry[]>`
-        INSERT INTO entries (user_id, type, ts, food_name, calories, notes, confidence)
+        INSERT INTO entries (user_id, type, ts, food_name, calories, protein_g, notes, confidence)
         VALUES (
           ${userId}, 'food', ${body.ts ?? new Date().toISOString()},
-          ${body.food_name!}, ${body.calories ?? 0}, ${body.notes ?? null}, ${body.confidence ?? null}
+          ${body.food_name!}, ${body.calories ?? 0}, ${body.protein_g ?? 0},
+          ${body.notes ?? null}, ${body.confidence ?? null}
         )
-        RETURNING id, user_id, type, ts, food_name, calories, notes, confidence, ml
+        RETURNING id, user_id, type, ts, food_name, calories, protein_g, notes, confidence, ml
       `;
       return ok({ entry: rows[0] });
     } else {
       const rows = await sql<Entry[]>`
         INSERT INTO entries (user_id, type, ts, ml)
         VALUES (${userId}, 'water', ${body.ts ?? new Date().toISOString()}, ${body.ml!})
-        RETURNING id, user_id, type, ts, food_name, calories, notes, confidence, ml
+        RETURNING id, user_id, type, ts, food_name, calories, protein_g, notes, confidence, ml
       `;
       return ok({ entry: rows[0] });
     }

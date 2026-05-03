@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
     const body = Body.parse(await req.json());
     const rows = await sql<(User & { password_hash: string })[]>`
       SELECT id, role, email, username, parent_id, name, age, gender,
-             height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at,
+             height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+             protein_goal, is_athlete, created_at,
              password_hash
       FROM users
       WHERE email = ${body.identifier} OR username = ${body.identifier}

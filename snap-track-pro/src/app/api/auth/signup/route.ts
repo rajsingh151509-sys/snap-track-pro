@@ -23,7 +23,8 @@ export async function POST(req: NextRequest) {
       INSERT INTO users (role, email, password_hash, name)
       VALUES ('parent', ${body.email}, ${hash}, ${body.name})
       RETURNING id, role, email, username, parent_id, name, age, gender,
-                height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at
+                height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+                protein_goal, is_athlete, created_at
     `;
     const user = rows[0];
     await setSessionCookie(user.id);

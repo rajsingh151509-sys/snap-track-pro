@@ -59,7 +59,8 @@ export async function getSessionUser(): Promise<User | null> {
   }
   const rows = await sql<User[]>`
     SELECT id, role, email, username, parent_id, name, age, gender,
-           height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at
+           height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+           protein_goal, is_athlete, created_at
     FROM users WHERE id = ${userId} LIMIT 1
   `;
   return rows[0] ?? null;
@@ -88,7 +89,8 @@ export async function requireOwnedUser(targetUserId: string): Promise<{ me: User
   if (me.role === 'parent') {
     const rows = await sql<User[]>`
       SELECT id, role, email, username, parent_id, name, age, gender,
-             height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at
+             height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+             protein_goal, is_athlete, created_at
       FROM users WHERE id = ${targetUserId} AND parent_id = ${me.id} LIMIT 1
     `;
     if (rows[0]) return { me, target: rows[0] };

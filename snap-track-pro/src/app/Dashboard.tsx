@@ -28,8 +28,10 @@ export default function Dashboard({ me, kids, initialUserId, initialEntries }: P
   const todayKey = new Date().toDateString();
   const todays = entries.filter((e) => new Date(e.ts).toDateString() === todayKey);
   const calToday = todays.filter((e) => e.type === 'food').reduce((s, e) => s + (e.calories || 0), 0);
+  const proteinToday = todays.filter((e) => e.type === 'food').reduce((s, e) => s + (e.protein_g || 0), 0);
   const waterToday = todays.filter((e) => e.type === 'water').reduce((s, e) => s + (e.ml || 0), 0);
   const calPct = Math.min(100, Math.round((calToday / Math.max(1, activeUser.calorie_goal)) * 100));
+  const proteinPct = Math.min(100, Math.round((proteinToday / Math.max(1, activeUser.protein_goal)) * 100));
   const waterPct = Math.min(100, Math.round((waterToday / Math.max(1, activeUser.water_goal_ml)) * 100));
   const cupsTaken = Math.round(waterToday / CUP_ML);
   const cupsGoal = Math.max(1, Math.round(activeUser.water_goal_ml / CUP_ML));
@@ -132,22 +134,33 @@ export default function Dashboard({ me, kids, initialUserId, initialEntries }: P
           {initials(activeUser.name)}
         </div>
         <div>
-          <div className="font-extrabold text-xl">Hi {activeUser.name.split(' ')[0]}!</div>
+          <div className="font-extrabold text-xl flex items-center gap-2">
+            Hi {activeUser.name.split(' ')[0]}!
+            {activeUser.is_athlete && (
+              <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent-soft text-accent">
+                Athlete
+              </span>
+            )}
+          </div>
           <div className="text-sm muted">{new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })}</div>
         </div>
       </section>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Stat label="Calories" value={`${calToday}`} sub={`of ${activeUser.calorie_goal} kcal`} pct={calPct} barColor="#7c3aed" />
+      <div className="grid grid-cols-3 gap-2">
+        <Stat label="Calories" value={`${calToday}`} sub={`of ${activeUser.calorie_goal}`} unit="kcal" pct={calPct} barColor="#7c3aed" />
+        <Stat
+          label="Protein"
+          value={`${proteinToday}`}
+          sub={`of ${activeUser.protein_goal} g`}
+          unit="g"
+          pct={proteinPct}
+          barColor="#16a34a"
+        />
         <Stat
           label="Water"
-          value={
-            <>
-              {waterToday}
-              <span className="text-sm font-normal muted"> ml</span>
-            </>
-          }
-          sub={`of ${activeUser.water_goal_ml} ml · ${cupsTaken}/${cupsGoal} cups`}
+          value={`${waterToday}`}
+          sub={`${cupsTaken}/${cupsGoal} cups`}
+          unit="ml"
           pct={waterPct}
           barColor="#2dd4ff"
         />
@@ -186,13 +199,14 @@ export default function Dashboard({ me, kids, initialUserId, initialEntries }: P
         return keys.map((k) => {
           const list = byDay[k];
           const cal = list.filter((e) => e.type === 'food').reduce((s, e) => s + (e.calories || 0), 0);
+          const prot = list.filter((e) => e.type === 'food').reduce((s, e) => s + (e.protein_g || 0), 0);
           const water = list.filter((e) => e.type === 'water').reduce((s, e) => s + (e.ml || 0), 0);
           return (
             <details key={k} className="card !p-3 mb-2">
               <summary className="cursor-pointer flex justify-between items-center">
                 <div>
                   <div className="font-semibold">{k}</div>
-                  <div className="text-xs muted">{cal} kcal · {water} ml</div>
+                  <div className="text-xs muted">{cal} kcal · {prot}g protein · {water} ml</div>
                 </div>
               </summary>
               <ul className="flex flex-col gap-2 mt-2">
@@ -223,20 +237,25 @@ function Stat({
   label,
   value,
   sub,
+  unit,
   pct,
   barColor,
 }: {
   label: string;
   value: React.ReactNode;
   sub: string;
+  unit?: string;
   pct: number;
   barColor: string;
 }) {
   return (
-    <div className="card !p-4">
-      <div className="text-xs muted uppercase tracking-wider font-bold">{label}</div>
-      <div className="text-2xl font-extrabold mt-1">{value}</div>
-      <div className="text-xs muted">{sub}</div>
+    <div className="card !p-3">
+      <div className="text-[10px] muted uppercase tracking-wider font-bold">{label}</div>
+      <div className="text-2xl font-extrabold mt-1 leading-none">
+        {value}
+        {unit && <span className="text-xs font-normal muted ml-1">{unit}</span>}
+      </div>
+      <div className="text-[11px] muted mt-1 truncate">{sub}</div>
       <div className="h-2 rounded-full bg-[#ece9f7] mt-2 overflow-hidden">
         <div className="h-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
       </div>
@@ -264,7 +283,14 @@ function EntryRow({ e, onDelete }: { e: Entry; onDelete: (id: string) => void })
           {!isWater && e.confidence ? ` · ${e.confidence} confidence` : ''}
         </div>
       </div>
-      <div className="font-bold text-sm">{isWater ? `${e.ml} ml` : `${e.calories ?? 0} kcal`}</div>
+      <div className="text-right">
+        <div className="font-bold text-sm">
+          {isWater ? `${e.ml} ml` : `${e.calories ?? 0} kcal`}
+        </div>
+        {!isWater && (e.protein_g ?? 0) > 0 && (
+          <div className="text-[11px] text-green-700 font-semibold">{e.protein_g}g protein</div>
+        )}
+      </div>
       <button className="btn btn-ghost !p-2" onClick={() => onDelete(e.id)} aria-label="Delete">
         <TrashIcon />
       </button>
@@ -284,6 +310,7 @@ function AddFoodModal({
   const [photoData, setPhotoData] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [cals, setCals] = useState('');
+  const [protein, setProtein] = useState('');
   const [notes, setNotes] = useState('');
   const [confidence, setConfidence] = useState<'low' | 'medium' | 'high' | null>(null);
   const [status, setStatus] = useState<string>('');
@@ -297,12 +324,13 @@ function AddFoodModal({
       setPhotoData(dataUrl);
       setStatus('Looking…');
       setBusy(true);
-      const r = await api<{ food: string; calories: number; confidence: string; notes: string }>(
+      const r = await api<{ food: string; calories: number; protein_g: number; confidence: string; notes: string }>(
         '/api/analyze',
         { method: 'POST', json: { image: dataUrl } },
       );
       setName(r.food);
       setCals(String(r.calories));
+      setProtein(String(r.protein_g ?? 0));
       setNotes(r.notes);
       setConfidence((r.confidence as 'low' | 'medium' | 'high') ?? 'medium');
       setStatus(`Got it · ${r.confidence} confidence`);
@@ -328,6 +356,7 @@ function AddFoodModal({
           type: 'food',
           food_name: name.trim(),
           calories: Math.max(0, parseInt(cals, 10) || 0),
+          protein_g: Math.max(0, parseInt(protein, 10) || 0),
           notes: notes.trim() || null,
           confidence,
         },
@@ -367,8 +396,16 @@ function AddFoodModal({
         {status && <div className="text-xs muted mb-2">{status}</div>}
         <label className="label">What is it?</label>
         <input className="field mb-3" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Apple, mac and cheese" />
-        <label className="label">Calories (kcal)</label>
-        <input className="field mb-3" type="number" min={0} value={cals} onChange={(e) => setCals(e.target.value)} />
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label className="label">Calories (kcal)</label>
+            <input className="field" type="number" min={0} value={cals} onChange={(e) => setCals(e.target.value)} />
+          </div>
+          <div>
+            <label className="label">Protein (g)</label>
+            <input className="field" type="number" min={0} value={protein} onChange={(e) => setProtein(e.target.value)} />
+          </div>
+        </div>
         <label className="label">Notes (optional)</label>
         <input className="field mb-4" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. small bowl, with milk" />
         <button className="btn !w-full" onClick={save} disabled={busy}>

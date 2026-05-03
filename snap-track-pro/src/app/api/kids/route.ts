@@ -12,7 +12,8 @@ export async function GET() {
     const me = await requireParent();
     const rows = await sql<User[]>`
       SELECT id, role, email, username, parent_id, name, age, gender,
-             height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at
+             height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+             protein_goal, is_athlete, created_at
       FROM users WHERE parent_id = ${me.id} ORDER BY created_at ASC
     `;
     return ok({ kids: rows.map(toPublicUser) });
@@ -32,6 +33,8 @@ const CreateBody = z.object({
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   calorie_goal: z.number().int().min(500).max(5000).optional(),
   water_goal_ml: z.number().int().min(200).max(5000).optional(),
+  protein_goal: z.number().int().min(10).max(400).optional(),
+  is_athlete: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -44,16 +47,19 @@ export async function POST(req: NextRequest) {
     const rows = await sql<User[]>`
       INSERT INTO users (
         role, username, password_hash, parent_id, name, age, gender,
-        height_cm, weight_kg, color, calorie_goal, water_goal_ml
+        height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+        protein_goal, is_athlete
       )
       VALUES (
         'kid', ${body.username}, ${hash}, ${me.id}, ${body.name},
         ${body.age ?? null}, ${body.gender ?? null}, ${body.height_cm ?? null},
         ${body.weight_kg ?? null}, ${body.color ?? '#7c3aed'},
-        ${body.calorie_goal ?? 1500}, ${body.water_goal_ml ?? 1400}
+        ${body.calorie_goal ?? 1500}, ${body.water_goal_ml ?? 1400},
+        ${body.protein_goal ?? 50}, ${body.is_athlete ?? false}
       )
       RETURNING id, role, email, username, parent_id, name, age, gender,
-                height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at
+                height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+                protein_goal, is_athlete, created_at
     `;
     return ok({ kid: toPublicUser(rows[0]) });
   } catch (e) {

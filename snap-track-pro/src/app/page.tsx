@@ -17,7 +17,8 @@ export default async function Home() {
   if (user.role === 'parent') {
     const rows = await sql<import('@/lib/types').User[]>`
       SELECT id, role, email, username, parent_id, name, age, gender,
-             height_cm, weight_kg, color, calorie_goal, water_goal_ml, created_at
+             height_cm, weight_kg, color, calorie_goal, water_goal_ml,
+             protein_goal, is_athlete, created_at
       FROM users WHERE parent_id = ${user.id} ORDER BY created_at ASC
     `;
     kids = rows.map(toPublicUser);
@@ -26,7 +27,7 @@ export default async function Home() {
   const initialUserId = user.role === 'parent' && kids.length ? kids[0].id : user.id;
   const since = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
   const entries = await sql<Entry[]>`
-    SELECT id, user_id, type, ts, food_name, calories, notes, confidence, ml
+    SELECT id, user_id, type, ts, food_name, calories, protein_g, notes, confidence, ml
     FROM entries WHERE user_id = ${initialUserId} AND ts >= ${since}
     ORDER BY ts DESC
   `;

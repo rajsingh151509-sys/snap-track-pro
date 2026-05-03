@@ -50,9 +50,16 @@ export default function KidsManager({ initialKids }: { initialKids: PublicUser[]
                 {initials(k.name)}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-bold">{k.name}</div>
+                <div className="font-bold">
+                  {k.name}
+                  {k.is_athlete && (
+                    <span className="ml-2 inline-block text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent-soft text-accent align-middle">
+                      Athlete
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs muted truncate">
-                  @{k.username} · {k.age ? `Age ${k.age} · ` : ''}{k.calorie_goal} kcal · {k.water_goal_ml} ml
+                  @{k.username} · {k.age ? `Age ${k.age} · ` : ''}{k.calorie_goal} kcal · {k.protein_goal}g protein · {k.water_goal_ml} ml
                 </div>
               </div>
               <button className="btn btn-secondary !px-3 !py-2 text-sm" onClick={() => setEditing({ mode: 'edit', kid: k })}>
@@ -104,29 +111,55 @@ function KidEditor({
   const [color, setColor] = useState<string>(k?.color ?? PALETTE[0]);
   const [calorieGoal, setCalorieGoal] = useState<string>(String(k?.calorie_goal ?? 1500));
   const [waterGoalMl, setWaterGoalMl] = useState<string>(String(k?.water_goal_ml ?? 1400));
+  const [proteinGoal, setProteinGoal] = useState<string>(String(k?.protein_goal ?? 50));
+  const [isAthlete, setIsAthlete] = useState<boolean>(k?.is_athlete ?? false);
   const [busy, setBusy] = useState(false);
 
-  // Auto-recompute goals from age/gender/height/weight unless the user has edited them.
+  // Auto-recompute goals from age/gender/height/weight/athlete-flag unless the user has edited them.
   const [calTouched, setCalTouched] = useState(false);
   const [waterTouched, setWaterTouched] = useState(false);
+  const [proteinTouched, setProteinTouched] = useState(false);
 
-  function recompute(nextAge = age, nextGender = gender, nextH = heightCm, nextW = weightKg) {
+  function recompute(
+    nextAge = age,
+    nextGender = gender,
+    nextH = heightCm,
+    nextW = weightKg,
+    nextAthlete = isAthlete,
+  ) {
     const a = parseInt(nextAge, 10) || 0;
     const w = parseFloat(nextW) || 0;
     const h = parseFloat(nextH) || 0;
     if (a < 2) return;
+    // Calories: athletes need ~15-25% more — bump activity factor accordingly.
     let cal: number;
+    const activity = nextAthlete ? 1.7 : 1.4;
     if (w > 0 && h > 0) {
       const bmr = nextGender === 'female' ? 10 * w + 6.25 * h - 5 * a - 161 : 10 * w + 6.25 * h - 5 * a + 5;
-      cal = Math.max(800, Math.min(5000, Math.round((bmr * 1.4) / 50) * 50));
+      cal = Math.max(800, Math.min(5000, Math.round((bmr * activity) / 50) * 50));
     } else {
-      cal = a <= 4 ? 1200 : a <= 8 ? 1500 : a <= 12 ? 1800 : a <= 17 ? 2200 : nextGender === 'female' ? 2000 : 2500;
+      const base = a <= 4 ? 1200 : a <= 8 ? 1500 : a <= 12 ? 1800 : a <= 17 ? 2200 : nextGender === 'female' ? 2000 : 2500;
+      cal = nextAthlete ? Math.round((base * 1.2) / 50) * 50 : base;
     }
+    // Water: athletes drink more.
     let water: number;
-    if (w > 0) water = Math.max(800, Math.min(5000, Math.round((w * 33) / 50) * 50));
-    else water = a <= 4 ? 1000 : a <= 8 ? 1400 : a <= 12 ? 1800 : a <= 17 ? 2200 : 2500;
+    const mlPerKg = nextAthlete ? 45 : 33;
+    if (w > 0) water = Math.max(800, Math.min(5000, Math.round((w * mlPerKg) / 50) * 50));
+    else {
+      const base = a <= 4 ? 1000 : a <= 8 ? 1400 : a <= 12 ? 1800 : a <= 17 ? 2200 : 2500;
+      water = nextAthlete ? Math.round((base * 1.3) / 50) * 50 : base;
+    }
+    // Protein: 1.0 g/kg normally; 1.5 g/kg for athletes. Round to nearest 5g.
+    let protein: number;
+    const gPerKg = nextAthlete ? 1.5 : 1.0;
+    if (w > 0) protein = Math.max(15, Math.min(300, Math.round((w * gPerKg) / 5) * 5));
+    else {
+      const base = a <= 4 ? 20 : a <= 8 ? 25 : a <= 12 ? 35 : a <= 17 ? 50 : nextGender === 'female' ? 50 : 60;
+      protein = nextAthlete ? Math.round((base * 1.4) / 5) * 5 : base;
+    }
     if (!calTouched) setCalorieGoal(String(cal));
     if (!waterTouched) setWaterGoalMl(String(water));
+    if (!proteinTouched) setProteinGoal(String(protein));
   }
 
   async function save(e: React.FormEvent) {
@@ -150,6 +183,8 @@ function KidEditor({
             color,
             calorie_goal: parseInt(calorieGoal, 10) || 1500,
             water_goal_ml: parseInt(waterGoalMl, 10) || 1400,
+            protein_goal: parseInt(proteinGoal, 10) || 50,
+            is_athlete: isAthlete,
           },
         });
         onSaved(r.kid, true);
@@ -163,6 +198,8 @@ function KidEditor({
           color,
           calorie_goal: parseInt(calorieGoal, 10) || 1500,
           water_goal_ml: parseInt(waterGoalMl, 10) || 1400,
+          protein_goal: parseInt(proteinGoal, 10) || 50,
+          is_athlete: isAthlete,
         };
         if (password) payload.password = password;
         const r = await api<{ user: PublicUser }>(`/api/kids/${k!.id}`, {
@@ -284,6 +321,24 @@ function KidEditor({
             </div>
           </div>
 
+          <label className="flex items-center gap-3 p-3 rounded-2xl border border-[#ece9f7] bg-accent-soft/40 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isAthlete}
+              onChange={(e) => {
+                setIsAthlete(e.target.checked);
+                recompute(age, gender, heightCm, weightKg, e.target.checked);
+              }}
+              className="w-5 h-5 accent-accent"
+            />
+            <div className="flex-1">
+              <div className="font-bold">Athlete</div>
+              <div className="text-xs muted">
+                Bumps calorie, water, and protein goals for active sports kids.
+              </div>
+            </div>
+          </label>
+
           <div>
             <label className="label">Color</label>
             <div className="flex gap-2 flex-wrap">
@@ -300,9 +355,9 @@ function KidEditor({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="label">Daily calories</label>
+              <label className="label">Calories</label>
               <input
                 className="field"
                 type="number"
@@ -317,7 +372,22 @@ function KidEditor({
               />
             </div>
             <div>
-              <label className="label">Daily water (ml)</label>
+              <label className="label">Protein (g)</label>
+              <input
+                className="field"
+                type="number"
+                min={10}
+                max={400}
+                step={5}
+                value={proteinGoal}
+                onChange={(e) => {
+                  setProteinGoal(e.target.value);
+                  setProteinTouched(true);
+                }}
+              />
+            </div>
+            <div>
+              <label className="label">Water (ml)</label>
               <input
                 className="field"
                 type="number"
@@ -332,7 +402,7 @@ function KidEditor({
               />
             </div>
           </div>
-          <div className="text-xs muted">Goals auto-fill from age, gender, height &amp; weight — adjust anytime.</div>
+          <div className="text-xs muted">Goals auto-fill from age, gender, height, weight &amp; athlete flag — adjust anytime.</div>
 
           <button className="btn !w-full" disabled={busy}>
             {busy ? 'Saving…' : isNew ? 'Create kid' : 'Save changes'}

@@ -4,10 +4,10 @@ import type { AnalyzeResult } from './types';
 const DEFAULT_MODEL = 'claude-haiku-4-5-20251001';
 
 const SYSTEM = `You are a friendly nutrition assistant for kids' meals.
-Look at the photo and identify the food. Estimate the total calories for the visible portion.
+Look at the photo and identify the food. Estimate the total calories AND total protein (in grams) for the visible portion.
 Be conservative and reasonable for typical kid-sized portions.
 Respond ONLY with strict JSON, no prose, in this exact shape:
-{"food":"short name","calories":number,"confidence":"low|medium|high","notes":"short note (size/quantity)"}`;
+{"food":"short name","calories":number,"protein_g":number,"confidence":"low|medium|high","notes":"short note (size/quantity)"}`;
 
 interface AnthropicContentBlock {
   type: string;
@@ -66,6 +66,7 @@ export async function analyzeFoodPhoto(opts: {
   return {
     food: String(obj.food ?? '').slice(0, 80) || 'Food',
     calories: Math.max(0, Math.round(Number(obj.calories) || 0)),
+    protein_g: Math.max(0, Math.round(Number(obj.protein_g) || 0)),
     confidence:
       obj.confidence === 'low' || obj.confidence === 'high' ? obj.confidence : 'medium',
     notes: String(obj.notes ?? '').slice(0, 200),
